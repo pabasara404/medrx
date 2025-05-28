@@ -19,20 +19,28 @@ class PrescriptionController extends Controller
         $user = auth()->user();
 
         if ($user->role === 'pharmacy') {
-            // For pharmacy users, show all prescriptions
-            $prescriptions = Prescription::with('user')->latest()->get();
+            // For pharmacy users, show all prescriptions with their quotations
+            $prescriptions = Prescription::with(['user', 'quotations' => function($query) {
+                $query->latest();
+            }])->latest()->get();
 
             return inertia('Dashboard', [
                 'prescriptions' => $prescriptions,
             ]);
         } else {
-            // For regular users, show their prescriptions and quotations
-            $prescriptions = Prescription::where('user_id', $user->id)->latest()->get();
+            // For regular users, show their prescriptions with quotations
+            $prescriptions = Prescription::with(['quotations' => function($query) {
+                $query->latest();
+            }])->where('user_id', $user->id)->latest()->get();
 
             $quotations = Quotation::with(['prescription', 'prescription.user'])
                 ->whereHas('prescription', fn($q) => $q->where('user_id', $user->id))
                 ->latest()
-                ->get();
+                ->get()
+                ->map(function ($q) {
+                    $q->items = json_decode($q->items);
+                    return $q;
+                });
 
             return inertia('Dashboard', [
                 'prescriptions' => $prescriptions,
@@ -56,7 +64,17 @@ class PrescriptionController extends Controller
     {
         $validated = $request->validated();
 
-        // Handle file upload
+        // Handle multiple image uploads
+        $imagePaths = [];
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $image) {
+                $path = $image->store('prescriptions', 'public');
+                $imagePaths[] = $path;
+            }
+            $validated['images'] = json_encode($imagePaths); // Store as JSON
+        }
+
+        // Handle single file upload (backwards compatibility)
         if ($request->hasFile('file')) {
             $path = $request->file('file')->store('prescriptions', 'public');
             $validated['file_path'] = $path;
@@ -80,7 +98,17 @@ class PrescriptionController extends Controller
             abort(403, 'Unauthorized access to prescription');
         }
 
-        $prescription->load('user');
+        $prescription->load(['user', 'quotations' => function($query) {
+            $query->latest();
+        }]);
+
+        // Decode quotation items if they exist
+        if ($prescription->quotations) {
+            $prescription->quotations->transform(function ($quotation) {
+                $quotation->items = json_decode($quotation->items);
+                return $quotation;
+            });
+        }
 
         return response()->json($prescription);
     }

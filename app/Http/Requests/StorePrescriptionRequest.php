@@ -22,7 +22,11 @@ class StorePrescriptionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'images' => 'required|array',
+            'images.*' => 'image|max:2048', // or whatever your max size is
+            'note' => 'required|string',
+            'delivery_address' => 'required|string',
+            'delivery_slot' => 'required|string',
         ];
     }
 }

@@ -19,10 +19,24 @@ class Quotation extends Model
 
     protected $casts = [
         'items' => 'array',
+        'total' => 'decimal:2',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
-    public function prescription()
+    /**
+     * Get the prescription that owns the quotation
+     */
+    public function prescription(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Prescription::class);
+    }
+
+    /**
+     * Get the decoded items
+     */
+    public function getDecodedItemsAttribute()
+    {
+        return json_decode($this->items, true);
     }
 }

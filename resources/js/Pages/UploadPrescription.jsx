@@ -11,7 +11,18 @@ export default function UploadPrescription() {
 
     const submit = (e) => {
         e.preventDefault();
+
+        const formData = new FormData();
+        for (const image of data.images) {
+            formData.append('images[]', image);
+        }
+        formData.append('note', data.note);
+        formData.append('delivery_address', data.delivery_address);
+        formData.append('delivery_slot', data.delivery_slot);
+
         post(route('prescriptions.store'), {
+            data: formData,
+            forceFormData: true,
             onSuccess: () => {
                 setData({
                     images: [],
@@ -23,6 +34,7 @@ export default function UploadPrescription() {
             },
         });
     };
+
 
     return (
         <form onSubmit={submit} className="p-4 space-y-4">

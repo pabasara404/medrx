@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Prescription extends Model
 {
@@ -21,6 +22,8 @@ class Prescription extends Model
 
     protected $casts = [
         'images' => 'array',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     public function user()
@@ -28,8 +31,19 @@ class Prescription extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function quotations()
+    /**
+     * Get the quotations for the prescription
+     */
+    public function quotations(): HasMany
     {
         return $this->hasMany(Quotation::class);
+    }
+
+    /**
+     * Get the latest quotation for the prescription
+     */
+    public function latestQuotation(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Quotation::class)->latest();
     }
 }
