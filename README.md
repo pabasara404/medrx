@@ -42,7 +42,7 @@ MAIL_FROM_NAME="${APP_NAME}"
 > ⚠️ You need to create a Mailtrap account to use the email functionality.
 
 ### 4. Create the MySQL database
-Make sure you create a database named `medrx` or as specified in your `.env` file, and add database credentials in .env file.
+Make sure you create a database named `medrx` or as specified in your `.env` file, and add database credentials in .env file. (Exported database is saved is SQL_database.md)
 
 ### 5. Run migrations and seed the database
 ```bash
