@@ -22,7 +22,6 @@ Route::get('/', function () {
     ]);
 });
 
-// Update this route to use PrescriptionController@index
 Route::get('/dashboard', [PrescriptionController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
@@ -38,6 +37,7 @@ Route::middleware('auth')->group(function () {
     // Quotation routes
     Route::get('/quotations', [QuotationController::class, 'index'])->name('quotations.index');
     Route::post('/quotations/{prescription}', [QuotationController::class, 'store'])->name('quotations.store');
+    Route::put('/quotations/{quotation}', [QuotationController::class, 'update'])->name('quotations.update'); // Added update route
     Route::get('/quotations/{quotation}', [QuotationController::class, 'show'])->name('quotations.show');
 
     // Quotation response routes (for users to accept/reject)

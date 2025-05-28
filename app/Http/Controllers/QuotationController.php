@@ -152,4 +152,52 @@ class QuotationController extends Controller
 
         return response()->json($quotation);
     }
+
+    public function update(Request $request, Quotation $quotation): \Illuminate\Http\RedirectResponse
+    {
+        // Validate the request
+        $request->validate([
+            'items' => 'required|array|min:1',
+            'items.*.drug' => 'required|string|max:255',
+            'items.*.qty' => 'required|integer|min:1',
+            'items.*.unit_price' => 'required|numeric|min:0',
+        ]);
+
+        // Check if user is pharmacy
+        if (auth()->user()->role !== 'pharmacy') {
+            abort(403, 'Only pharmacy users can update quotations');
+        }
+
+        // Calculate totals for each item
+        $items = [];
+        $total = 0;
+
+        foreach ($request->items as $item) {
+            $amount = $item['qty'] * $item['unit_price'];
+            $items[] = [
+                'drug' => $item['drug'],
+                'qty' => (int)$item['qty'],
+                'unit_price' => (float)$item['unit_price'],
+                'amount' => $amount,
+            ];
+            $total += $amount;
+        }
+
+        // Update the quotation
+        $quotation->update([
+            'items' => json_encode($items),
+            'total' => $total,
+            'status' => 'quoted',
+        ]);
+
+        // Send email notification to user
+        $user = $quotation->prescription->user;
+        try {
+            Mail::to($user->email)->send(new QuotationMail($quotation));
+        } catch (\Exception $e) {
+            \Log::error('Failed to send quotation email: ' . $e->getMessage());
+        }
+
+        return back()->with('success', 'Quotation updated successfully!');
+    }
 }

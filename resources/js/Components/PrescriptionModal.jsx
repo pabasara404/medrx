@@ -1,13 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
 import { X, Plus, Trash2 } from 'lucide-react';
 
 export default function PrescriptionModal({ prescription, isOpen, onClose }) {
     const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+    const hasQuotation = prescription.quotations && prescription.quotations.length > 0;
+    const initialItems = hasQuotation
+        ? JSON.parse(prescription.quotations[0].items)
+        : [{ drug: '', qty: '', unit_price: '' }];
 
-    const { data, setData, post, processing, errors, reset } = useForm({
-        items: [{ drug: '', qty: '', unit_price: '' }]
+    const { data, setData, post, put, processing, errors, reset } = useForm({
+        items: initialItems,
     });
+
+    useEffect(() => {
+        // Reset form to initial items when prescription changes
+        setData('items', initialItems);
+    }, [prescription.id]);
 
     const addItem = () => {
         setData('items', [...data.items, { drug: '', qty: '', unit_price: '' }]);
@@ -32,11 +41,16 @@ export default function PrescriptionModal({ prescription, isOpen, onClose }) {
     };
 
     const handleSubmit = () => {
-        post(route('quotations.store', prescription.id), {
+        const routeMethod = hasQuotation ? put : post;
+        const routeName = hasQuotation
+            ? route('quotations.update', prescription.quotations[0].id)
+            : route('quotations.store', prescription.id);
+
+        routeMethod(routeName, {
             onSuccess: () => {
                 reset();
                 onClose();
-            }
+            },
         });
     };
 
@@ -49,11 +63,10 @@ export default function PrescriptionModal({ prescription, isOpen, onClose }) {
             <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
                 {/* Header */}
                 <div className="flex justify-between items-center p-6 border-b">
-                    <h2 className="text-2xl font-bold">Prescription Details & Quotation</h2>
-                    <button
-                        onClick={onClose}
-                        className="text-gray-500 hover:text-gray-700"
-                    >
+                    <h2 className="text-2xl font-bold">
+                        {hasQuotation ? 'Update Quotation' : 'Prepare Quotation'}
+                    </h2>
+                    <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
                         <X size={24} />
                     </button>
                 </div>
@@ -117,11 +130,13 @@ export default function PrescriptionModal({ prescription, isOpen, onClose }) {
 
                         {/* Right Side - Quotation Form */}
                         <div className="space-y-4">
-                            <h3 className="text-xl font-semibold">Prepare Quotation</h3>
+                            <h3 className="text-xl font-semibold">
+                                {hasQuotation ? 'Update Quotation' : 'Prepare Quotation'}
+                            </h3>
 
                             <div className="space-y-4">
                                 {/* Current Items Table */}
-                                {data.items.some(item => item.drug || item.qty || item.unit_price) && (
+                                {data.items.length > 0 && (
                                     <div className="border rounded-lg overflow-hidden">
                                         <table className="w-full">
                                             <thead className="bg-gray-100">
@@ -133,21 +148,29 @@ export default function PrescriptionModal({ prescription, isOpen, onClose }) {
                                             </tr>
                                             </thead>
                                             <tbody>
-                                            {data.items.map((item, index) => {
-                                                if (!item.drug && !item.qty && !item.unit_price) return null;
-                                                const amount = (parseFloat(item.qty) || 0) * (parseFloat(item.unit_price) || 0);
-                                                return (
-                                                    <tr key={index} className="border-t">
-                                                        <td className="p-3">{item.drug}</td>
-                                                        <td className="p-3">{item.qty}</td>
-                                                        <td className="p-3">${parseFloat(item.unit_price || 0).toFixed(2)}</td>
-                                                        <td className="p-3 font-semibold">${amount.toFixed(2)}</td>
-                                                    </tr>
-                                                );
-                                            })}
+                                            {data.items.map((item, index) => (
+                                                <tr key={index} className="border-t">
+                                                    <td className="p-3">{item.drug || 'N/A'}</td>
+                                                    <td className="p-3">{item.qty || '0'}</td>
+                                                    <td className="p-3">
+                                                        ${parseFloat(item.unit_price || 0).toFixed(2)}
+                                                    </td>
+                                                    <td className="p-3 font-semibold">
+                                                        $
+                                                        {(
+                                                            (parseFloat(item.qty) || 0) *
+                                                            (parseFloat(item.unit_price) || 0)
+                                                        ).toFixed(2)}
+                                                    </td>
+                                                </tr>
+                                            ))}
                                             <tr className="border-t bg-gray-50">
-                                                <td colSpan="3" className="p-3 text-right font-semibold">Total:</td>
-                                                <td className="p-3 font-bold text-lg">${calculateTotal().toFixed(2)}</td>
+                                                <td colSpan="3" className="p-3 text-right font-semibold">
+                                                    Total:
+                                                </td>
+                                                <td className="p-3 font-bold text-lg">
+                                                    ${calculateTotal().toFixed(2)}
+                                                </td>
                                             </tr>
                                             </tbody>
                                         </table>
@@ -173,11 +196,15 @@ export default function PrescriptionModal({ prescription, isOpen, onClose }) {
 
                                             <div className="grid grid-cols-1 gap-3">
                                                 <div>
-                                                    <label className="block text-sm font-medium mb-1">Drug Name</label>
+                                                    <label className="block text-sm font-medium mb-1">
+                                                        Drug Name
+                                                    </label>
                                                     <input
                                                         type="text"
                                                         value={item.drug}
-                                                        onChange={(e) => updateItem(index, 'drug', e.target.value)}
+                                                        onChange={(e) =>
+                                                            updateItem(index, 'drug', e.target.value)
+                                                        }
                                                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                         placeholder="Enter drug name"
                                                     />
@@ -185,11 +212,15 @@ export default function PrescriptionModal({ prescription, isOpen, onClose }) {
 
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <div>
-                                                        <label className="block text-sm font-medium mb-1">Quantity</label>
+                                                        <label className="block text-sm font-medium mb-1">
+                                                            Quantity
+                                                        </label>
                                                         <input
                                                             type="number"
                                                             value={item.qty}
-                                                            onChange={(e) => updateItem(index, 'qty', e.target.value)}
+                                                            onChange={(e) =>
+                                                                updateItem(index, 'qty', e.target.value)
+                                                            }
                                                             className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                             placeholder="Qty"
                                                             min="1"
@@ -197,12 +228,16 @@ export default function PrescriptionModal({ prescription, isOpen, onClose }) {
                                                     </div>
 
                                                     <div>
-                                                        <label className="block text-sm font-medium mb-1">Unit Price ($)</label>
+                                                        <label className="block text-sm font-medium mb-1">
+                                                            Unit Price ($)
+                                                        </label>
                                                         <input
                                                             type="number"
                                                             step="0.01"
                                                             value={item.unit_price}
-                                                            onChange={(e) => updateItem(index, 'unit_price', e.target.value)}
+                                                            onChange={(e) =>
+                                                                updateItem(index, 'unit_price', e.target.value)
+                                                            }
                                                             className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                             placeholder="0.00"
                                                             min="0"
@@ -214,7 +249,11 @@ export default function PrescriptionModal({ prescription, isOpen, onClose }) {
                                                     <div className="text-right">
                                                         <span className="text-sm text-gray-600">Amount: </span>
                                                         <span className="font-semibold">
-                                                            ${((parseFloat(item.qty) || 0) * (parseFloat(item.unit_price) || 0)).toFixed(2)}
+                                                            $
+                                                            {(
+                                                                (parseFloat(item.qty) || 0) *
+                                                                (parseFloat(item.unit_price) || 0)
+                                                            ).toFixed(2)}
                                                         </span>
                                                     </div>
                                                 )}
@@ -236,7 +275,9 @@ export default function PrescriptionModal({ prescription, isOpen, onClose }) {
                                 {/* Error Display */}
                                 {Object.keys(errors).length > 0 && (
                                     <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                                        <h4 className="text-red-800 font-medium mb-2">Please fix the following errors:</h4>
+                                        <h4 className="text-red-800 font-medium mb-2">
+                                            Please fix the following errors:
+                                        </h4>
                                         <ul className="text-red-700 text-sm space-y-1">
                                             {Object.values(errors).map((error, index) => (
                                                 <li key={index}>• {error}</li>
@@ -257,10 +298,10 @@ export default function PrescriptionModal({ prescription, isOpen, onClose }) {
                                     <button
                                         type="button"
                                         onClick={handleSubmit}
-                                        disabled={processing || data.items.every(item => !item.drug)}
+                                        disabled={processing || data.items.every((item) => !item.drug)}
                                         className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
                                     >
-                                        {processing ? 'Sending...' : 'Send Quotation'}
+                                        {processing ? 'Processing...' : hasQuotation ? 'Update Quotation' : 'Send Quotation'}
                                     </button>
                                 </div>
                             </div>
