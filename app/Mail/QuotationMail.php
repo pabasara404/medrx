@@ -23,10 +23,15 @@ use Illuminate\Queue\SerializesModels;
         $this->quotation = $quotation;
     }
 
-    public function build(): QuotationMail
+    public function build()
     {
         return $this->subject('Your Prescription Quotation')
-            ->markdown('emails.quotation');
+            ->markdown('emails.quotation')
+            ->with([
+                'quotation' => $this->quotation,
+                'prescription' => $this->quotation->prescription,
+                'items' => json_decode($this->quotation->items, true),
+            ]);
     }
 
     /**
@@ -35,7 +40,7 @@ use Illuminate\Queue\SerializesModels;
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Quotation Mail',
+            subject: 'Your Prescription Quotation',
         );
     }
 

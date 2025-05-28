@@ -21,12 +21,17 @@ class QuotationController extends Controller
         $quotations = Quotation::with(['prescription', 'prescription.user'])
             ->whereHas('prescription', fn($q) => $q->where('user_id', $user->id))
             ->latest()
-            ->get();
+            ->get()
+            ->map(function ($q) {
+                $q->items = json_decode($q->items); // decode JSON string to array
+                return $q;
+            });
 
         return inertia('UserQuotations', [
             'quotations' => $quotations,
         ]);
     }
+
 
     /**
      * Store a newly created quotation

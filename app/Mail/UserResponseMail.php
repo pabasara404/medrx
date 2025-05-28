@@ -2,33 +2,36 @@
 
 namespace App\Mail;
 
-use AllowDynamicProperties;
 use App\Models\Quotation;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-#[AllowDynamicProperties] class UserResponseMail extends Mailable
+class UserResponseMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    /**
-     * Create a new message instance.
-     */
-    public function __construct(Quotation $quotation, $response)
+    public $quotation;
+
+    public function __construct(Quotation $quotation)
     {
         $this->quotation = $quotation;
-        $this->response = $response;
     }
 
-    public function build(): UserResponseMail
+    public function build()
     {
-        return $this->subject('User Responded to Quotation')
-            ->markdown('emails.user_response');
+        return $this->subject('User Response to Quotation')
+            ->view('emails.user_response')
+            ->with([
+                'quotation' => $this->quotation,
+                'status' => $this->quotation->status,
+                'prescriptionId' => $this->quotation->prescription_id,
+            ]);
     }
+
 
     /**
      * Get the message envelope.
@@ -53,7 +56,7 @@ use Illuminate\Queue\SerializesModels;
     /**
      * Get the attachments for the message.
      *
-     * @return array<int, \Illuminate\Mail\Mailables\Attachment>
+     * @return array<int, Attachment>
      */
     public function attachments(): array
     {

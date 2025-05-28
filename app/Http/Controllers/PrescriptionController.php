@@ -3,10 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Prescription;
+use App\Models\Quotation;
 use App\Http\Requests\StorePrescriptionRequest;
 use App\Http\Requests\UpdatePrescriptionRequest;
-use Illuminate\Support\Facades\Auth;
-use Inertia\Inertia;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class PrescriptionController extends Controller
 {
@@ -18,23 +19,34 @@ class PrescriptionController extends Controller
         $user = auth()->user();
 
         if ($user->role === 'pharmacy') {
-            // Load prescriptions with user and quotations for pharmacy users
-            $prescriptions = Prescription::with(['user', 'quotations' => function($query) {
-                $query->latest()->limit(1); // Get the latest quotation
-            }])->latest()->get();
+            // For pharmacy users, show all prescriptions
+            $prescriptions = Prescription::with('user')->latest()->get();
+
+            return inertia('Dashboard', [
+                'prescriptions' => $prescriptions,
+            ]);
         } else {
-            // Load user's prescriptions with quotations for regular users
-            $prescriptions = $user->prescriptions()
-                ->with(['quotations' => function($query) {
-                    $query->latest()->limit(1);
-                }])
+            // For regular users, show their prescriptions and quotations
+            $prescriptions = Prescription::where('user_id', $user->id)->latest()->get();
+
+            $quotations = Quotation::with(['prescription', 'prescription.user'])
+                ->whereHas('prescription', fn($q) => $q->where('user_id', $user->id))
                 ->latest()
                 ->get();
-        }
 
-        return Inertia::render('Dashboard', [
-            'prescriptions' => $prescriptions,
-        ]);
+            return inertia('Dashboard', [
+                'prescriptions' => $prescriptions,
+                'quotations' => $quotations,
+            ]);
+        }
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create()
+    {
+        return inertia('Prescriptions/Create');
     }
 
     /**
@@ -42,45 +54,97 @@ class PrescriptionController extends Controller
      */
     public function store(StorePrescriptionRequest $request)
     {
-        $request->validate([
-            'note' => 'required|string',
-            'delivery_address' => 'required|string',
-            'delivery_slot' => 'required|string',
-            'images.*' => 'image|mimes:jpeg,png,jpg|max:2048',
-        ]);
+        $validated = $request->validated();
 
-        $images = [];
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $image) {
-                $images[] = $image->store('prescriptions', 'public');
-            }
+        // Handle file upload
+        if ($request->hasFile('file')) {
+            $path = $request->file('file')->store('prescriptions', 'public');
+            $validated['file_path'] = $path;
         }
 
-        Prescription::create([
-            'user_id' => Auth::id(),
-            'images' => json_encode($images),
-            'note' => $request->note,
-            'delivery_address' => $request->delivery_address,
-            'delivery_slot' => $request->delivery_slot,
-        ]);
+        $validated['user_id'] = auth()->id();
 
-        return redirect()->route('dashboard')->with('success', 'Prescription uploaded successfully!');
+        Prescription::create($validated);
+
+        return back()->with('success', 'Prescription uploaded successfully!');
     }
 
     /**
-     * Display the specified resource with detailed information
+     * Display the specified resource.
      */
     public function show(Prescription $prescription)
     {
-        // Load prescription with user and quotations
-        $prescription->load(['user', 'quotations.items']);
-
-        // Check authorization
+        // Check if user can view this prescription
         $user = auth()->user();
         if ($user->role !== 'pharmacy' && $prescription->user_id !== $user->id) {
             abort(403, 'Unauthorized access to prescription');
         }
 
+        $prescription->load('user');
+
         return response()->json($prescription);
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function edit(Prescription $prescription)
+    {
+        // Check authorization
+        if ($prescription->user_id !== auth()->id()) {
+            abort(403, 'Unauthorized access to prescription');
+        }
+
+        return inertia('Prescriptions/Edit', [
+            'prescription' => $prescription,
+        ]);
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(UpdatePrescriptionRequest $request, Prescription $prescription)
+    {
+        // Check authorization
+        if ($prescription->user_id !== auth()->id()) {
+            abort(403, 'Unauthorized access to prescription');
+        }
+
+        $validated = $request->validated();
+
+        // Handle file upload
+        if ($request->hasFile('file')) {
+            // Delete old file if exists
+            if ($prescription->file_path) {
+                Storage::disk('public')->delete($prescription->file_path);
+            }
+
+            $path = $request->file('file')->store('prescriptions', 'public');
+            $validated['file_path'] = $path;
+        }
+
+        $prescription->update($validated);
+
+        return back()->with('success', 'Prescription updated successfully!');
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(Prescription $prescription)
+    {
+        // Check authorization
+        if ($prescription->user_id !== auth()->id()) {
+            abort(403, 'Unauthorized access to prescription');
+        }
+
+        // Delete file if exists
+        if ($prescription->file_path) {
+            Storage::disk('public')->delete($prescription->file_path);
+        }
+
+        $prescription->delete();
+
+        return back()->with('success', 'Prescription deleted successfully!');
     }
 }

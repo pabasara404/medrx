@@ -1,8 +1,13 @@
-@component('mail::message')
-    # Quotation {{ ucfirst($response) }}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>User Response to Quotation</title>
+</head>
+<body>
+<p>Hello Pharmacy,</p>
+<p>The user has <strong>{{ $status }}</strong> the quotation for Prescription ID <strong>{{ $prescriptionId }}</strong>.</p>
 
-    The user has **{{ $response }}** your quotation for prescription #{{ $quotation->prescription_id }}.
-
-    Thanks,<br>
-    {{ config('app.name') }}
-@endcomponent
+<p>Thank you.</p>
+</body>
+</html>
