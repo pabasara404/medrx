@@ -144,7 +144,7 @@ class QuotationController extends Controller
     {
         $quotation->load(['prescription', 'prescription.user']);
 
-        // Check authorization
+
         $user = auth()->user();
         if ($user->role !== 'pharmacy' && $quotation->prescription->user_id !== $user->id) {
             abort(403, 'Unauthorized access to quotation');
@@ -155,7 +155,7 @@ class QuotationController extends Controller
 
     public function update(Request $request, Quotation $quotation): \Illuminate\Http\RedirectResponse
     {
-        // Validate the request
+
         $request->validate([
             'items' => 'required|array|min:1',
             'items.*.drug' => 'required|string|max:255',
@@ -163,12 +163,10 @@ class QuotationController extends Controller
             'items.*.unit_price' => 'required|numeric|min:0',
         ]);
 
-        // Check if user is pharmacy
         if (auth()->user()->role !== 'pharmacy') {
             abort(403, 'Only pharmacy users can update quotations');
         }
 
-        // Calculate totals for each item
         $items = [];
         $total = 0;
 
@@ -183,14 +181,12 @@ class QuotationController extends Controller
             $total += $amount;
         }
 
-        // Update the quotation
         $quotation->update([
             'items' => json_encode($items),
             'total' => $total,
             'status' => 'quoted',
         ]);
 
-        // Send email notification to user
         $user = $quotation->prescription->user;
         try {
             Mail::to($user->email)->send(new QuotationMail($quotation));

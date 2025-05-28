@@ -19,7 +19,6 @@ class PrescriptionController extends Controller
         $user = auth()->user();
 
         if ($user->role === 'pharmacy') {
-            // For pharmacy users, show all prescriptions with their quotations
             $prescriptions = Prescription::with(['user', 'quotations' => function($query) {
                 $query->latest();
             }])->latest()->get();
@@ -28,7 +27,7 @@ class PrescriptionController extends Controller
                 'prescriptions' => $prescriptions,
             ]);
         } else {
-            // For regular users, show their prescriptions with quotations
+
             $prescriptions = Prescription::with(['quotations' => function($query) {
                 $query->latest();
             }])->where('user_id', $user->id)->latest()->get();
@@ -64,17 +63,15 @@ class PrescriptionController extends Controller
     {
         $validated = $request->validated();
 
-        // Handle multiple image uploads
         $imagePaths = [];
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
                 $path = $image->store('prescriptions', 'public');
                 $imagePaths[] = $path;
             }
-            $validated['images'] = json_encode($imagePaths); // Store as JSON
+            $validated['images'] = json_encode($imagePaths);
         }
 
-        // Handle single file upload (backwards compatibility)
         if ($request->hasFile('file')) {
             $path = $request->file('file')->store('prescriptions', 'public');
             $validated['file_path'] = $path;
@@ -161,12 +158,10 @@ class PrescriptionController extends Controller
      */
     public function destroy(Prescription $prescription)
     {
-        // Check authorization
         if ($prescription->user_id !== auth()->id()) {
             abort(403, 'Unauthorized access to prescription');
         }
 
-        // Delete file if exists
         if ($prescription->file_path) {
             Storage::disk('public')->delete($prescription->file_path);
         }

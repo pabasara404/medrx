@@ -56,7 +56,7 @@ export default function Dashboard({ prescriptions = [], quotations = [] }) {
                                                     key={prescription.id}
                                                     prescription={prescription}
                                                     role={role}
-                                                    onView={openModal} // Changed from onOpenModal to onView
+                                                    onView={openModal}
                                                 />
                                             ))}
                                         </div>
