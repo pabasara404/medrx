@@ -3,7 +3,7 @@
 This is a Laravel-based system for uploading and managing medical prescriptions. It includes two user roles: **User** (uploads prescriptions) and **Pharmacy** (reviews prescriptions). The frontend is built using Inertia.js with React and styled using Tailwind CSS.
 
 ## ⏱️ Time Spent
-Total development time: **8 hours**
+Total development time: **12 hours**
 
 ## 🔧 Project Setup
 
